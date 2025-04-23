@@ -45,7 +45,7 @@ class TicTacToe:
     def available_moves(self):
         return [i for i, val in enumerate(self.board) if val == ' ']
 
-def detect_human_move(robot, grid_cells):
+def detect_human_move(robot, grid_cells, game):
     """
     Continuously captures images from the robot's camera,
     detects a blue marker (using an HSV range for blue),
@@ -67,12 +67,12 @@ def detect_human_move(robot, grid_cells):
             (x1, y1), (x2, y2) = cell
             for cnt in contours:
                 x, y, w, h = cv2.boundingRect(cnt)
-                cx = x + w/2
-                cy = y + h/2
-                if x1 <= cx <= x2 and y1 <= cy <= y2:
+                cx = x + w / 2
+                cy = y + h / 2
+                if x1 <= cx <= x2 and y1 <= cy <= y2 and game.board[idx] == ' ':
                     detected_index = idx
                     print(f"Detected BLUE marker in cell {detected_index}.")
-                    break
+                    return detected_index
         cv2.waitKey(50)
     return detected_index
 
@@ -162,13 +162,13 @@ class RobotPlayer:
 
     def pick_up_red_marker(self):
         """
-        Move to the red marker position, pick it up using the gripper, 
+        Move to the red marker position, pick it up using the vacuum pump, 
         and return to the observation pose.
         """
         red_pose = self.cfg["red_marker_pos"]
         self.safe_move_joints(red_pose, "red marker position")
-        print("Closing gripper to pick up RED marker...")
-        self.robot.close_gripper()
+        print("Activating vacuum pump to pick up RED marker...")
+        self.robot.pull_air_vacuum_pump()  # Activate the vacuum pump to pick up the marker
         time.sleep(2)
 
         # Return to observation pose after picking up the red marker
@@ -185,8 +185,8 @@ class RobotPlayer:
         # Move to the target cell to place the marker
         target_joints = BOARD_JOINTS[cell_index]
         self.safe_move_joints(target_joints, f"cell {cell_index}")
-        print("Opening gripper to release marker...")
-        self.robot.open_gripper()
+        print("Deactivating vacuum pump to release marker...")
+        self.robot.push_air_vacuum_pump()  # Deactivate the vacuum pump to release the marker
         time.sleep(1)
 
         # Return to observation pose after placing the marker
@@ -202,7 +202,11 @@ class RobotPlayer:
 def main():
     # Initialize robot player
     robot_player = RobotPlayer()
-    
+
+    # Move to observation pose immediately after starting
+    print("Moving robot arm to observation pose...")
+    robot_player.move_to_observation_pose()
+
     # Detect board grid
     detector = BoardDetector(robot_player.robot)
     print("Detecting board. View the window and press 'q' when the grid is finalized.")
@@ -216,7 +220,7 @@ def main():
         for idx, cell in enumerate(grid_cells):
             print(f"Cell {idx}: {cell}")
 
-    # Move to observation pose
+    # Move to observation pose after board detection
     robot_player.move_to_observation_pose()
 
     # Initialize game logic
@@ -227,7 +231,7 @@ def main():
     while True:
         # Human turn: Wait for blue marker detection.
         print("\nHuman's turn:")
-        human_idx = detect_human_move(robot_player.robot, grid_cells)
+        human_idx = detect_human_move(robot_player.robot, grid_cells, game)
         if human_idx is None:
             print("No valid move detected. Exiting game.")
             break
@@ -262,7 +266,13 @@ def main():
             print("Game is a tie!")
             break
 
-    print("Game over. Closing robot connection...")
+    # Move to sleep position after the game is over
+    print("Game over. Moving robot arm to sleep position...")
+    sleep_joints = CONFIG["sleep_joints"]
+    robot_player.safe_move_joints(sleep_joints, "sleep position")
+
+    # Close robot connection
+    print("Closing robot connection...")
     time.sleep(2)
     robot_player.close()
 
