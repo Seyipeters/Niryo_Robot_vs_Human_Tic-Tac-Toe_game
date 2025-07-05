@@ -51,7 +51,7 @@ python game.py
 
 ## Demo Video
 
-[Watch the project demo here.](https://your-video-link-here.com)
+[Watch the project demo here.](https://youtu.be/208LFdNqPvg)
 
 ## License
 
