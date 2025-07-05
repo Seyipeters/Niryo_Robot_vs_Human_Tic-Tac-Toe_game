@@ -25,9 +25,15 @@ class TicTacToe:
                 print("-----------")
 
     def make_move(self, idx, symbol):
+        """
+        Make a move on the board if the cell is empty.
+        """
         if 0 <= idx < 9 and self.board[idx] == ' ':
             self.board[idx] = symbol
+            print(f"Move made: {symbol} at index {idx}")
+            self.print_board()  # Debugging: Print the board state after the move
             return True
+        print(f"Invalid move: Cell {idx} is already occupied.")
         return False
 
     def check_win(self):
@@ -47,48 +53,80 @@ class TicTacToe:
 
 def detect_human_move(robot, grid_cells, game):
     """
-    Continuously captures images from the robot's camera,
-    detects a blue marker (using an HSV range for blue),
-    and returns the index of the grid cell in which the blue marker appears.
+    Detect the human's move by identifying a blue marker on the board.
     """
     print("Waiting for human to place BLUE marker...")
-    lower_blue = np.array([100, 150, 50])
-    upper_blue = np.array([140, 255, 255])
-    detected_index = None
-    while detected_index is None:
-        img = robot.get_img_compressed()
-        if img is None:
-            continue
-        frame = cv2.imdecode(np.frombuffer(img, np.uint8), cv2.IMREAD_COLOR)
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv, lower_blue, upper_blue)
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for idx, cell in enumerate(grid_cells):
-            (x1, y1), (x2, y2) = cell
-            for cnt in contours:
-                x, y, w, h = cv2.boundingRect(cnt)
-                cx = x + w / 2
-                cy = y + h / 2
-                if x1 <= cx <= x2 and y1 <= cy <= y2 and game.board[idx] == ' ':
-                    detected_index = idx
-                    print(f"Detected BLUE marker in cell {detected_index}.")
-                    return detected_index
-        cv2.waitKey(50)
-    return detected_index
+    lower_blue = np.array([100, 150, 100])  # Adjust these values based on your environment
+    upper_blue = np.array([130, 255, 255])
+    detection_counts = [0] * len(grid_cells)  # Track detection confidence for each cell
+    threshold = 0.2  # Minimum percentage of blue pixels required to detect a marker
+
+    while True:
+        try:
+            img = robot.get_img_compressed()
+            if img is None:
+                print("No image captured. Retrying...")
+                time.sleep(1)
+                continue
+
+            frame = cv2.imdecode(np.frombuffer(img, np.uint8), cv2.IMREAD_COLOR)
+            if frame is None:
+                print("Failed to decode image. Retrying...")
+                time.sleep(1)
+                continue
+
+            hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            mask = cv2.inRange(hsv, lower_blue, upper_blue)
+
+            for idx, cell in enumerate(grid_cells):
+                (x1, y1), (x2, y2) = cell
+                cell_mask = mask[y1:y2, x1:x2]
+                blue_pixel_count = cv2.countNonZero(cell_mask)
+                total_pixel_count = cell_mask.size
+                blue_percentage = blue_pixel_count / total_pixel_count
+
+                print(f"Cell {idx}: Blue Pixel Percentage = {blue_percentage:.2f}")
+
+                if blue_percentage > threshold and game.board[idx] == ' ':
+                    detection_counts[idx] += 1
+                    print(f"Potential move detected in cell {idx}, confirming... ({detection_counts[idx]}/3)")
+                    if detection_counts[idx] >= 3:
+                        print(f"Confirmed: BLUE marker detected in cell {idx}.")
+                        return idx
+                else:
+                    detection_counts[idx] = 0
+
+            time.sleep(1)
+        except Exception as e:
+            print(f"Error detecting move: {str(e)}")
+            time.sleep(1)
 
 def robot_best_move(game):
     """
     Determine the best move for the robot using the Minimax algorithm.
     """
+    print("\nRobot is calculating its best move...")
+    print("Current Board State:")
+    for i in range(3):
+        print(game.board[3 * i:3 * i + 3])
+
     best_score = -float('inf')
     best_move = None
+
+    # Iterate over available moves
     for idx in game.available_moves():
+        print(f"Evaluating move for cell {idx}...")
+        # Simulate the robot's move
         game.board[idx] = 'R'
         score = minimax(game, 0, False, -float('inf'), float('inf'))
-        game.board[idx] = ' '  # Undo move
+        game.board[idx] = ' '  # Undo the move
+
+        # Choose the move with the highest score
         if score > best_score:
             best_score = score
             best_move = idx
+
+    print(f"Robot's best move is cell {best_move} with score {best_score}.")
     return best_move
 
 def minimax(game, depth, is_maximizing, alpha, beta):
@@ -198,6 +236,17 @@ class RobotPlayer:
         """
         self.robot.close_connection()
         print("Robot connection closed.")
+
+def print_board_state(game):
+    """
+    Print the current state of the board for debugging.
+    """
+    print("\nCurrent Board State:")
+    for i in range(3):
+        row = game.board[3 * i:3 * i + 3]
+        print(' | '.join(row))
+        if i < 2:
+            print("-----------")
 
 def main():
     # Initialize robot player

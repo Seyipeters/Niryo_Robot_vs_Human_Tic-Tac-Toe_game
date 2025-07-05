@@ -60,14 +60,16 @@ class BoardDetector:
                 self.grid_cells = []
                 from itertools import product
                 for row, col in product(range(3), repeat=2):
-                        x1 = x + col * cell_size
-                        y1 = y + row * cell_size
-                        x2 = x1 + cell_size
-                        y2 = y1 + cell_size
-                        self.grid_cells.append(((x1, y1), (x2, y2)))
+                    x1 = x + col * cell_size
+                    y1 = y + row * cell_size
+                    x2 = x1 + cell_size
+                    y2 = y1 + cell_size
+                    self.grid_cells.append(((x1, y1), (x2, y2)))
                 # Draw the grid on the frame for visual feedback
-                for (top_left, bottom_right) in self.grid_cells:
+                for idx, (top_left, bottom_right) in enumerate(self.grid_cells):
                     cv2.rectangle(frame, top_left, bottom_right, (0, 255, 0), 2)
+                    cv2.putText(frame, str(idx), (top_left[0] + 10, top_left[1] + 30),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 cv2.imshow("Board Detection", frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
