@@ -4,6 +4,10 @@ This project implements a physical Tic-Tac-Toe game using a Niryo robot arm, com
 
 **This project was developed as part of the fulfillment of my BEng Information Technology (IoT) at the Savonia University of Applied Sciences, Finland.**
 
+## Demo Video
+
+[![Watch the video](https://img.youtube.com/vi/208LFdNqPvg/0.jpg)](https://youtu.be/208LFdNqPvg)
+
 ## Features
 
 - **Computer Vision Board Detection:** Uses OpenCV to detect the Tic-Tac-Toe board and human moves (blue markers).
@@ -49,9 +53,6 @@ python game.py
 
 5. Follow the on-screen instructions. The robot will detect the board, wait for your move (place a blue marker), and then make its own move.
 
-## Demo Video
-
-[Watch the project demo here.](https://youtu.be/208LFdNqPvg)
 
 ## License
 
